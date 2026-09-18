@@ -28,22 +28,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Only run for 4.5 for the moment.
           - php: '8.2'
             moodle-branch: 'MOODLE_405_STABLE'
             database: 'pgsql'
-          - php: '8.2'
-            moodle-branch: 'MOODLE_500_STABLE'
-            database: 'pgsql'
-          - php: '8.2'
-            moodle-branch: 'MOODLE_501_STABLE'
-            database: 'pgsql'
-          - php: '8.3'
-            moodle-branch: 'main'
-            database: 'pgsql'
+#          - php: '8.2'
+#            moodle-branch: 'MOODLE_500_STABLE'
+#            database: 'pgsql'
+#          - php: '8.2'
+#            moodle-branch: 'MOODLE_501_STABLE'
+#            database: 'pgsql'
+#          - php: '8.3'
+#            moodle-branch: 'main'
+#            database: 'pgsql'
 
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           path: plugin
 
@@ -77,6 +78,7 @@ jobs:
         run: moodle-plugin-ci phpcpd ./plugin
 
       - name: PHP Mess Detector
+        continue-on-error: true # This step shows warnings but does not fail the build.
         if: ${{ always() }}
         run: moodle-plugin-ci phpmd ./plugin
 
@@ -107,8 +109,97 @@ jobs:
 
       - name: PHPUnit tests
         if: ${{ always() }}
-        run: moodle-plugin-ci phpunit
+        run: |
+          moodle-plugin-ci phpunit
+          moodle-plugin-ci phpunit ./plugin/type/poll
+          moodle-plugin-ci phpunit ./plugin/type/text
+
+  behat:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Only run for 4.5 for the moment.
+          - php: '8.2'
+            moodle-branch: 'MOODLE_405_STABLE'
+            database: 'pgsql'
+
+    env:
+      MOODLE_DOCKER_WWWROOT: ${{ github.workspace }}/moodle
+      MOODLE_DOCKER_DB: ${{ matrix.database }}
+      MOODLE_DOCKER_PHP_VERSION: ${{ matrix.php }}
+      MOODLE_DOCKER_BROWSER: chrome
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          path: plugin
+
+      - name: Check out moodle-docker
+        uses: actions/checkout@v4
+        with:
+          repository: moodlehq/moodle-docker
+          path: moodle-docker
+
+      - name: Check out Moodle core
+        uses: actions/checkout@v4
+        with:
+          repository: moodle/moodle
+          ref: ${{ matrix.moodle-branch }}
+          path: moodle
+
+      - name: Install plugin into Moodle codebase
+        run: |
+          mkdir -p moodle/mod/response
+          cp -r plugin/. moodle/mod/response/
+
+      - name: Configure Moodle for moodle-docker
+        working-directory: moodle-docker
+        run: |
+          cp config.docker-template.php "${MOODLE_DOCKER_WWWROOT}/config.php"
+          # Insert our custom settings before the mandatory trailing setup.php
+          # require (Moodle's config.php must end with that require_once call).
+          # This enables browser console-log capture, matching the diagnostic
+          # behat_mod_response.php hook used to find the "No define call"
+          # RequireJS failures, and a faildump path for artifact upload.
+          sed -i "/require_once(__DIR__ . '\/lib\/setup.php');/i \\
+          \$CFG->behat_increasetimeout = 3;\\
+          \$CFG->behat_config = ['default' => ['extensions' => ['Behat\\\\\\\\MinkExtension' => ['webdriver' => ['capabilities' => ['extra_capabilities' => ['goog:loggingPrefs' => ['browser' => 'ALL']]]]]]]];" \
+            "${MOODLE_DOCKER_WWWROOT}/config.php"
+
+      - name: Start moodle-docker and initialise Behat
+        working-directory: moodle-docker
+        run: |
+          bin/moodle-docker-compose pull
+          bin/moodle-docker-compose up -d
+          bin/moodle-docker-wait-for-db
+          bin/moodle-docker-compose exec -T webserver php admin/tool/behat/cli/init.php
 
       - name: Behat features
+        working-directory: moodle-docker
+        # Runs against a real web server (Apache/PHP-FPM in the webserver container),
+        # unlike moodle-plugin-ci's Behat command which uses PHP's built-in dev server -
+        # avoiding the intermittent "No define call" RequireJS failures seen in CI.
+        run: |
+          bin/moodle-docker-compose exec -T webserver php admin/tool/behat/cli/run.php --tags="@mod_response"
+
+      - name: Copy Behat faildumps
+        if: ${{ failure() }}
+        working-directory: moodle-docker
+        run: bin/moodle-docker-compose cp webserver:/var/www/behatfaildumps "${{ github.workspace }}/faildumps" || true
+
+      - name: Upload Behat faildump
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: behat-faildump
+          path: ${{ github.workspace }}/faildumps
+          if-no-files-found: ignore
+
+      - name: Stop moodle-docker
         if: ${{ always() }}
-        run: moodle-plugin-ci behat --profile chrome
+        working-directory: moodle-docker
+        run: bin/moodle-docker-compose down

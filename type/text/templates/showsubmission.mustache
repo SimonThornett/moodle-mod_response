@@ -37,13 +37,13 @@
 
     Example context (json):
     {
-        "profile_picture": "<img src=\"http://your.moodle.here/pluginfile.php/...\">',
+        "profile_picture": "<img alt=\"\" src=\"http://your.moodle.here/pluginfile.php/...\">",
         "viewing_own": true,
         "profile_name": "Joe",
         "user_response": "It's sunny outside, I like it like that.",
         "user_response_time": "01/10/17 13:28",
         "response_id": 2,
-        "postcompletion": { HTML representing a Moodle form object },
+        "postcompletion": "<form>...</form>"
     }
 }}
 {{< mod_response/response}}
@@ -58,8 +58,13 @@
 {{/content}}
 {{/ mod_response/response}}
 {{#js}}
+M.util.js_pending('mod_response/precompletion:postcompletion:init:{{{response_id}}}');
 require(['mod_response/precompletion', 'mod_response/postcompletion'], function(precompletion, postcompletion) {
     precompletion();
-    postcompletion.init('#mod_response_form_{{{response_id}}}') 
+    postcompletion.init('#mod_response_form_{{{response_id}}}');
+    M.util.js_complete('mod_response/precompletion:postcompletion:init:{{{response_id}}}');
+}, function(err) {
+    M.util.js_complete('mod_response/precompletion:postcompletion:init:{{{response_id}}}');
+    window.console.error('mod_response: failed to load precompletion/postcompletion', err);
 });
 {{/js}}

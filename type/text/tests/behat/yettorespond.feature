@@ -48,7 +48,7 @@ Feature: Users should be able to view which text activities they are yet to resp
     And I should see "You have not responded yet." in the "//div[@class='activity-section-container'][2]" "xpath_element"
     And I should not see "The weather" in the "//div[@class='activity-section-container'][2]" "xpath_element"
 
-      @javascript
+  @javascript
   Scenario: A user views summary where all activities are completed.
     When I log in as "student1"
     And I am on "Course 1" course homepage

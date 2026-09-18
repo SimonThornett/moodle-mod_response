@@ -1,14 +1,20 @@
-define(['jquery', 'mod_response/countwords'], function($, count_words) {
+define(['jquery', 'mod_response/countwords'], function($, countWords) {
+    const eventName = 'input.modResponseWordCount change.modResponseWordCount';
+
     return {
         init: function(selector) {
-            $(selector + ' textarea').on('change', function() {
-                var text = $(this).val();
-                var msgel = $(this).closest('form').find('[data-message]');
-                var msg = $(msgel).data('message');
-                if (msg) {
-                    $(msgel).html(msg.replace('{words}', count_words(text)));
-                }
-            }).trigger('change');
+            $(selector + ' textarea')
+                .off(eventName)
+                .on(eventName, function() {
+                    const text = $(this).val() || '';
+                    const messageElement = $(this).closest('form').find('[data-message]');
+                    const message = messageElement.data('message');
+
+                    if (typeof message === 'string') {
+                        messageElement.text(message.replace('{words}', countWords(text)));
+                    }
+                })
+                .trigger('change.modResponseWordCount');
         }
     };
 });

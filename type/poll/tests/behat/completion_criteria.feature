@@ -45,6 +45,8 @@ Feature: Users should be able to complete poll response to complete courses
     And I wait "2" seconds
     Then I should see "You answered"
     And I should see "Cloudy"
+    # Reload to make sure the completion status is updated on the course homepage.
+    And I am on "Course 1" course homepage
     And "Done" "button" should exist in the "The weather" "activity"
 
   @javascript
@@ -105,6 +107,8 @@ Feature: Users should be able to complete poll response to complete courses
     And I wait "2" seconds
     Then I should see "You answered"
     And I should see "Cloudy outside"
+    # Reload to make sure the completion status is updated on the course homepage.
+    And I am on "Course 1" course homepage
     And "Done" "button" should exist in the "The weather" "activity"
 
   @javascript

@@ -26,6 +26,7 @@ use core_privacy\local\request\writer;
 use stdClass;
 use moodle_url;
 use core_privacy\local\request\approved_userlist;
+use mod_response\privacy\response_privacy_test_trait;
 
 /**
  * Privacy class for requesting user data.
@@ -39,6 +40,17 @@ use core_privacy\local\request\approved_userlist;
  * @covers \responsetype_poll\privacy\provider
  */
 final class privacy_test extends provider_testcase {
+    use response_privacy_test_trait;
+
+    /**
+     * Returns the poll response table and expected record count.
+     *
+     * @return array
+     */
+    protected function get_response_type_details(): array {
+        return ['responsetype_poll_user', 4];
+    }
+
     /**
      * Do initial setup to support this test case.
      *
@@ -82,151 +94,48 @@ final class privacy_test extends provider_testcase {
     }
 
     /**
+     * Creates the common two-activity privacy test fixture.
+     *
+     * @return array Fixture activities, contexts, and users.
+     */
+    protected function create_privacy_fixture(): array {
+        $gen = $this->getDataGenerator();
+        $c1 = $gen->create_course();
+        $u1 = $gen->create_user();
+        $u2 = $gen->create_user();
+
+        $text1 = $this->create_poll($gen, $c1, 'Question 1?', 2, 'User answer?');
+        $text1ctx = context_module::instance($text1->cmid);
+        $this->respond_to_activity($text1->id, $u1->id, 1, 'User 1 answer to Response 1');
+        $this->respond_to_activity($text1->id, $u2->id, 1, 'User 2 answer to Response 1');
+
+        $text2 = $this->create_poll($gen, $c1, 'Question 2?', 2, 'User answer?');
+        $text2ctx = context_module::instance($text2->cmid);
+        $this->respond_to_activity($text2->id, $u1->id, 2, 'User 1 answer to Response 2');
+        $this->respond_to_activity($text2->id, $u2->id, 2, 'User 2 answer to Response 2');
+
+        return [$text1, $text2, $text1ctx, $text2ctx, $u1, $u2];
+    }
+
+    /**
      * Verify that the contexts fetched for the user are correct.
      */
     public function test_get_contexts_for_userid(): void {
-        $this->resetAfterTest();
-
-        $gen = $this->getDataGenerator();
-        $c1 = $gen->create_course();
-        $c2 = $gen->create_course();
-
-        $u1 = $gen->create_user();
-
-        // Create an activity in one course.
-        $text1 = $this->create_poll($gen, $c1, 'Question 1?', 2, '');
-        $text1ctx = context_module::instance($text1->cmid);
-        $this->respond_to_activity($text1->id, $u1->id, 1);
-
-        // Create an activity in a second course.
-        $text2 = $this->create_poll($gen, $c2, 'Question 2?', 2, '');
-        $text2ctx = context_module::instance($text2->cmid);
-
-        $this->respond_to_activity($text2->id, $u1->id, 2);
-
-        // Now verify the contexts we get.
-        $usercontextids = [
-            $text1ctx->id,
-            $text2ctx->id,
-        ];
-        $usercontextids = array_unique($usercontextids);
-
-        $contextlist = parentprovider::get_contexts_for_userid($u1->id);
-        $contextlistids = $contextlist->get_contextids();
-        // If we compare the lists, we should find the intersection matches completely.
-        $this->assertEquals(count($usercontextids), count(array_intersect($usercontextids, $contextlistids)));
+        $this->run_get_contexts_for_userid();
     }
 
     /**
      * Verify that all user data for a single context is removed upon call.
      */
     public function test_delete_data_for_all_users_in_context(): void {
-        global $DB;
-
-        $this->resetAfterTest();
-
-        $gen = $this->getDataGenerator();
-        $c1 = $gen->create_course();
-        $c2 = $gen->create_course();
-
-        $u1 = $gen->create_user();
-        $u2 = $gen->create_user();
-
-        // Create an activity in one course.
-        $text1 = $this->create_poll($gen, $c1, 'Question 1?', 2, 'User answer?');
-        $text1ctx = context_module::instance($text1->cmid);
-
-        $this->respond_to_activity($text1->id, $u1->id, 1, 'User 1 answer to Response 1');
-        $this->respond_to_activity($text1->id, $u2->id, 1, 'User 2 answer to Response 1');
-
-        // Create an activity in a second course.
-        $text2 = $this->create_poll($gen, $c1, 'Question 2?', 2, 'User answer?');
-        $text2ctx = context_module::instance($text2->cmid);
-
-        $this->respond_to_activity($text2->id, $u1->id, 2, 'User 1 answer to Response 2');
-        $this->respond_to_activity($text2->id, $u2->id, 2, 'User 2 answer to Response 2');
-
-        // Now, delete things. We call the parent because the API will too, and verify the results.
-        parentprovider::delete_data_for_all_users_in_context($text1ctx);
-
-        // Let's query what we have. There should be two Response entries total (i.e. this shouldn't be touched).
-        $records = $DB->get_records('response');
-        $this->assertEquals(2, count($records));
-
-        $originalquestions = ['Question 1?', 'Question 2?'];
-        foreach ($records as $record) {
-            $this->assertContains($record->question, $originalquestions);
-        }
-
-        // Now let's get the user answers.
-        $recordsuser = $DB->get_records('response_user');
-        // There should only be two answers.
-        $this->assertEquals(2, count($recordsuser));
-
-        // And the records that are there should match the activity we know we're dealing with.
-        foreach ($recordsuser as $record) {
-            $this->assertEquals($record->response, $text2->id);
-        }
-
-        // Now the specific textual responses.
-        $recordsusertext = $DB->get_records('responsetype_poll_user');
-        $this->assertEquals(4, count($recordsusertext));
-        // And assert they are connected to the correct instance.
-        foreach ($recordsusertext as $record) {
-            $this->assertEquals($record->response, $text2->id);
-        }
+        $this->run_delete_data_for_all_users_in_context();
     }
 
     /**
      * Verify that a single user's data is removed from multiple contexts.
      */
     public function test_delete_data_for_user(): void {
-        global $DB;
-
-        $this->resetAfterTest();
-
-        $gen = $this->getDataGenerator();
-        $c1 = $gen->create_course();
-        $c2 = $gen->create_course();
-
-        $u1 = $gen->create_user();
-        $u2 = $gen->create_user();
-
-        // Create an activity in one course.
-        $text1 = $this->create_poll($gen, $c1, 'Question 1?', 2, 'User answer?');
-        $text1ctx = context_module::instance($text1->cmid);
-
-        $this->respond_to_activity($text1->id, $u1->id, 1, 'User 1 answer to Response 1');
-        $this->respond_to_activity($text1->id, $u2->id, 1, 'User 2 answer to Response 1');
-
-        // Create an activity in a second course.
-        $text2 = $this->create_poll($gen, $c1, 'Question 2?', 2, 'User answer?');
-        $text2ctx = context_module::instance($text2->cmid);
-
-        $this->respond_to_activity($text2->id, $u1->id, 2, 'User 1 answer to Response 2');
-        $this->respond_to_activity($text2->id, $u2->id, 2, 'User 2 answer to Response 2');
-
-        // Now, delete things. We call the parent because the API will too, and verify the results.
-        $contextlist = new approved_contextlist($u1, 'mod_response', [$text1ctx->id, $text2ctx->id]);
-        parentprovider::delete_data_for_user($contextlist);
-
-        // Now let's get the user answers.
-        $recordsuser = $DB->get_records('response_user');
-        // There should only be two answers.
-        $this->assertEquals(2, count($recordsuser));
-
-        // And the records that are there should match the activity we know we're dealing with.
-        foreach ($recordsuser as $record) {
-            $this->assertEquals($record->userid, $u2->id);
-        }
-
-        // Now the specific textual responses.
-        $recordsusertext = $DB->get_records('responsetype_poll_user');
-        $this->assertEquals(4, count($recordsusertext));
-        // And assert they are both for User 2.
-        foreach ($recordsusertext as $record) {
-            $this->assertEquals($record->userid, $u2->id);
-        }
+        $this->run_delete_data_for_user();
     }
 
     /**

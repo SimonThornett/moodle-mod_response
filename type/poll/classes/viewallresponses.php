@@ -12,82 +12,63 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace mod_response\type\poll;
-use mod_response\responsetype\abstractoutput;
-use stdClass;
-use renderable;
-use renderer_base;
-use templatable;
-use mod_response\helper;
-use moodle_url;
-use pix_icon;
+
 use context_module;
+use mod_response\helper;
+use mod_response\responsetype\abstractviewallresponses;
+use stdClass;
 
 /**
- * Creates a renderer for showing all responses to an activity.
+ * Creates a renderer for showing poll responses to an activity.
  *
  * @package   responsetype_poll
  * @copyright 2017 Peter Spicer <peter.spicer@catalyst-eu.net>
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class viewallresponses extends abstractoutput implements renderable, templatable {
-    /** @var object Contains all the data for a response so a user can complete it. */
-    protected $data = null;
+class viewallresponses extends abstractviewallresponses {
+    /**
+     * Formats a poll response.
+     *
+     * @param stdClass $response Response to prepare.
+     * @return bool
+     */
+    protected function prepare_response(stdClass $response): bool {
+        if (!isset($this->data->activity->poll_choices[$response->choice])) {
+            return false;
+        }
+
+        $response->choicetext = $this->data->activity->poll_choices[$response->choice]->choice;
+        $response->reflection_text = file_rewrite_pluginfile_urls(
+            $response->reflection_text,
+            'pluginfile.php',
+            context_module::instance($this->data->coursemodule)->id,
+            'responsetype_poll',
+            'response_poll',
+            $response->id,
+        );
+        $response->reflection_text = format_text($response->reflection_text);
+        return true;
+    }
 
     /**
-     * Provides the data for the template.
+     * Returns the response component.
      *
-     * Essentially hands everything to the subplugin because the subplugin
-     * knows what it needs for its own templates.
-     *
-     * @param renderer_base $output The output renderer object
-     * @return object $data An object containing all the template data
+     * @return string
      */
-    public function export_for_template(renderer_base $output): object {
-        global $OUTPUT;
+    protected function get_component(): string {
+        return 'responsetype_poll';
+    }
 
-        $data = new stdClass();
-
-        // Whatever we're exporting, we want the title and question. (And support multilang by default).
-        $data->heading = format_string($this->data->name);
-        $data->question = format_string($this->data->question);
-        $data->user_responses = !empty($this->data->user_responses) ? $this->data->user_responses : [];
-        $data->group_selector = !empty($this->data->group_selector) ? $this->data->group_selector : '';
-
-        $data->icon = $OUTPUT->render(new pix_icon('icon', '', 'responsetype_poll'));
-
-        $data->responsetype = $this->data->responsetype;
-        // Combine the answer possibilities into the answers from users.
-        foreach ($data->user_responses as $id => $response) {
-            if (isset($this->data->activity->poll_choices[$response->choice])) {
-                $data->user_responses[$id]->choicetext = $this->data->activity->poll_choices[$response->choice]->choice;
-                $response->reflection_text = file_rewrite_pluginfile_urls(
-                    $response->reflection_text,
-                    'pluginfile.php',
-                    context_module::instance($this->data->coursemodule)->id,
-                    'responsetype_poll',
-                    'response_poll',
-                    $response->id
-                );
-                $data->user_responses[$id]->reflection_text = format_text($response->reflection_text);
-            } else {
-                unset($data->user_responses[$id]);
-            }
-        }
-        // Mustache requires we provide it a real array.
-        $data->user_responses = array_values($data->user_responses);
-
-        // Fix up date formatting.
-        $dateformat = get_string('strftimedatefullshort', 'langconfig');
-        $datetimeformat = get_string('strftimedatetimeshort', 'langconfig');
-        foreach ($data->user_responses as $id => $response) {
-            $timestamp = $response->timecompleted;
-            $data->user_responses[$id]->timecompleted_date = userdate($timestamp, $dateformat, 99, false, false);
-            $data->user_responses[$id]->timecompleted_datetime = userdate($timestamp, $datetimeformat, 99, false, false);
-        }
-
+    /**
+     * Adds poll aggregate data.
+     *
+     * @param stdClass $data Template data.
+     * @return void
+     */
+    protected function finalize_data(stdClass $data): void {
         $data->aggregate = [];
         foreach ($this->data->activity->poll_choices as $choice) {
             $data->aggregate[$choice->responsenum] = [
@@ -100,16 +81,20 @@ class viewallresponses extends abstractoutput implements renderable, templatable
         }
         $data->aggregate = json_encode($data->aggregate);
         $data->chart_colours = $this->stringify_chart_colorset();
+    }
 
-        // Generate the URL for the context where the activity is displayed.
+    /**
+     * Returns the context link.
+     *
+     * @return string
+     */
+    protected function get_context_link(): string {
         $cm = get_coursemodule_from_id('response', $this->data->coursemodule);
         $course = get_course($cm->course);
-        $data->context_link = \mod_response\helper::get_context_url(
+        return helper::get_context_url(
             $cm,
             $course,
-            $this->data->responsedisplay
+            $this->data->responsedisplay,
         )->out(false);
-
-        return $data;
     }
 }
