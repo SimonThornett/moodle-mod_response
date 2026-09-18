@@ -34,7 +34,7 @@ $search = optional_param('search', '', PARAM_TEXT); // User search.
 $firstinitial = optional_param('ifirst', '', PARAM_ALPHA); // First initial.
 $lastinitial = optional_param('ilast', '', PARAM_ALPHA); // Last initial.
 
-$PAGE->requires->js_call_amd('mod_response/searchwidget/user', 'init');
+helper::js_call_amd_safe($PAGE, 'mod_response/searchwidget/user', 'init');
 
 if ($r) {
     if (!$response = $DB->get_record('response', ['id' => $r])) {

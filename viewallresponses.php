@@ -78,7 +78,7 @@ $viewalllink = new \action_link(
 );
 echo $output->render($viewalllink);
 
-$PAGE->requires->js_call_amd('mod_response/searchwidget/user', 'init', ['/mod/response/viewallresponses.php']);
+helper::js_call_amd_safe($PAGE, 'mod_response/searchwidget/user', 'init', ['/mod/response/viewallresponses.php']);
 $actionbar = new \mod_response\output\action_bar($context, '/mod/response/viewallresponses.php');
 echo $output->render_action_bar($actionbar);
 

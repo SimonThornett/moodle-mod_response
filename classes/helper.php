@@ -19,6 +19,7 @@ namespace mod_response;
 use coding_exception;
 use core_component;
 use mod_response\display_completion;
+use moodle_page;
 use moodle_url;
 use stdClass;
 use ReflectionClass;
@@ -56,6 +57,70 @@ class helper {
             // Show one section per page.
             return new \moodle_url('/course/section.php', ['id' => $cm->section], 'module-' . $cm->id);
         }
+    }
+
+    /**
+     * Serves a response-type file after checking access to the response.
+     *
+     * @param stdClass $cm Course module.
+     * @param stdClass $context File context.
+     * @param string $filearea Requested file area.
+     * @param array $args File path arguments.
+     * @param bool $forcedownload Whether to force downloading.
+     * @param array $options File serving options.
+     * @param string $usertable Response-type user table.
+     * @param string $responsefilearea Response-type file area.
+     * @return bool False when the request is invalid.
+     */
+    public static function serve_pluginfile(
+        stdClass $cm,
+        stdClass $context,
+        string $filearea,
+        array $args,
+        bool $forcedownload,
+        array $options,
+        string $usertable,
+        string $responsefilearea
+    ): bool {
+        global $DB, $USER;
+
+        if ($context->contextlevel != CONTEXT_MODULE || !has_capability('mod/response:view', $context)) {
+            return false;
+        }
+        if (empty($args[0]) || !is_numeric($args[0])) {
+            return false;
+        }
+
+        $requestedresponse = $DB->get_record($usertable, ['id' => $args[0]]);
+        if (empty($requestedresponse)) {
+            return false;
+        }
+
+        $response = $DB->get_record('response', ['id' => $cm->instance], '*', MUST_EXIST);
+        $instance = self::instance_factory($response->responsetype, 'information');
+        $instance->load_activity($response);
+        $response->user_responses = $instance->load_response_for_users($response, [$requestedresponse->userid, $USER->id]);
+
+        if (
+            !has_capability('mod/response:viewall', $context) && !has_capability('mod/response:viewother', $context)
+                && empty($response->user_responses[$USER->id])
+        ) {
+            return false;
+        }
+        if (empty($response->user_responses[$requestedresponse->userid])) {
+            return false;
+        }
+        if (!self::can_see($USER->id, $requestedresponse->userid, $cm, $response, false)) {
+            return false;
+        }
+
+        $fullpath = "/$context->id/{$responsefilearea}/$filearea/" . implode('/', $args);
+        $file = get_file_storage()->get_file_by_hash(sha1($fullpath));
+        if (!$file) {
+            send_file_not_found();
+        }
+        send_stored_file($file, null, 0, $forcedownload, $options);
+        return true;
     }
 
     /**
@@ -651,5 +716,53 @@ class helper {
             $ids[] = $response->id;
         }
         return implode(',', $ids);
+    }
+
+    /**
+     * Load an AMD module and eventually call its method, treating a failed module load as
+     * non-fatal so pending Javascript is always marked complete.
+     *
+     * This mirrors core's page_requirements_manager::js_call_amd(), but adds an error callback
+     * to require() so that a broken RequireJS combo bundle (e.g. "No define call for X") cannot
+     * leave the page's Javascript permanently "pending", which otherwise causes Behat's
+     * wait_for_pending_js() to time out.
+     *
+     * @param moodle_page $page The page to attach the AMD call to.
+     * @param string $fullmodule The name of the AMD module to load, formatted as <component>/<module>.
+     * @param string|null $func Optional function from the module to call, defaults to just loading the module.
+     * @param array $params The params to pass to the function (will be serialized into JSON).
+     */
+    public static function js_call_amd_safe(
+        moodle_page $page,
+        string $fullmodule,
+        ?string $func = null,
+        array $params = []
+    ): void {
+        $modulepath = explode('/', $fullmodule);
+
+        $modname = clean_param(array_shift($modulepath), PARAM_COMPONENT);
+        foreach ($modulepath as $module) {
+            $modname .= '/' . clean_param($module, PARAM_ALPHANUMEXT);
+        }
+
+        $successcode = [];
+        if ($func !== null) {
+            $func = clean_param($func, PARAM_ALPHANUMEXT);
+
+            $jsonparams = [];
+            foreach ($params as $param) {
+                $jsonparams[] = json_encode($param);
+            }
+            $strparams = implode(', ', $jsonparams);
+
+            $successcode[] = "amd.{$func}({$strparams});";
+        }
+        $successcode[] = "M.util.js_complete('{$modname}');";
+
+        $js = "M.util.js_pending('{$modname}'); " .
+            "require(['{$modname}'], function(amd) {" . implode(' ', $successcode) . "}, function(err) {" .
+            "M.util.js_complete('{$modname}'); window.console.error('mod_response: failed to load {$modname}', err);});";
+
+        $page->requires->js_amd_inline($js);
     }
 }

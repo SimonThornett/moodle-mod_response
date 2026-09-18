@@ -16,6 +16,10 @@
 
 require_once(__DIR__ . '/../../../../lib/behat/behat_base.php');
 
+use Behat\Behat\Hook\Scope\AfterStepScope;
+use Behat\Testwork\Tester\Result\TestResult;
+use Facebook\WebDriver\Remote\RemoteWebDriver;
+
 /**
  * Behat steps for mod_response
  *
@@ -25,6 +29,90 @@ require_once(__DIR__ . '/../../../../lib/behat/behat_base.php');
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class behat_mod_response extends behat_base {
+    /** @var string|null Directory used to store console log dumps for the current run. */
+    protected static ?string $consolelogdir = null;
+
+    /**
+     * Dump the browser's JavaScript console log alongside the core faildump when a step fails.
+     *
+     * The core faildump mechanism only captures a screenshot and the page HTML, which is often
+     * insufficient to diagnose JavaScript errors (e.g. an AMD module load failure). This hook
+     * writes any console log entries reported by the WebDriver session to a text file in
+     * $CFG->behat_faildump_path so they are captured in CI artifacts too.
+     *
+     * @param AfterStepScope $scope scope passed by event fired after step.
+     * @AfterStep
+     */
+    public function after_step_dump_console_log(AfterStepScope $scope): void {
+        global $CFG;
+
+        if (empty($CFG->behat_faildump_path)) {
+            return;
+        }
+
+        if ($scope->getTestResult()->getResultCode() !== TestResult::FAILED) {
+            return;
+        }
+
+        if (!$this->running_javascript()) {
+            return;
+        }
+
+        $driver = $this->getSession()->getDriver();
+        if (!method_exists($driver, 'getWebDriver')) {
+            return;
+        }
+
+        try {
+            /** @var RemoteWebDriver $webdriver */
+            $webdriver = $driver->getWebDriver();
+            $entries = $webdriver->manage()->getLog('browser');
+        } catch (\Exception $e) {
+            return;
+        }
+
+        if (empty($entries)) {
+            return;
+        }
+
+        $lines = [];
+        foreach ($entries as $entry) {
+            $timestamp = isset($entry['timestamp']) ? date('Y-m-d H:i:s', (int) ($entry['timestamp'] / 1000)) : '';
+            $lines[] = sprintf('[%s] %s: %s', $timestamp, $entry['level'] ?? '', $entry['message'] ?? '');
+        }
+
+        [$dir, $filename] = $this->get_console_log_filename($scope);
+        file_put_contents($dir . DIRECTORY_SEPARATOR . $filename, implode(PHP_EOL, $lines));
+    }
+
+    /**
+     * Determine the full pathname to store a console log dump, mirroring the naming used by the
+     * core faildump mechanism (feature title + step text) so files can be correlated.
+     *
+     * @param AfterStepScope $scope scope passed by event fired after step.
+     * @return array [string $dir, string $filename]
+     */
+    protected function get_console_log_filename(AfterStepScope $scope): array {
+        global $CFG;
+
+        if (self::$consolelogdir === null) {
+            self::$consolelogdir = date('Ymd_His') . '_console';
+            $dir = $CFG->behat_faildump_path . DIRECTORY_SEPARATOR . self::$consolelogdir;
+            if (!is_dir($dir) && !mkdir($dir, $CFG->directorypermissions, true)) {
+                throw new \Exception(
+                    'No directories can be created inside $CFG->behat_faildump_path, check the directory permissions.'
+                );
+            }
+        }
+        $dir = $CFG->behat_faildump_path . DIRECTORY_SEPARATOR . self::$consolelogdir;
+
+        $filename = $scope->getFeature()->getTitle() . '_' . $scope->getStep()->getText();
+        $filename = preg_replace('/([^a-zA-Z0-9\_]+)/', '-', $filename);
+        $filename = substr($filename, 0, 245) . '_' . $scope->getStep()->getLine() . '.log';
+
+        return [$dir, $filename];
+    }
+
     #[\Override]
     protected function resolve_page_instance_url(string $type, string $identifier): moodle_url {
         switch (strtolower($type)) {

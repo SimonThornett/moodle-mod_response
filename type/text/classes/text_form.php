@@ -41,9 +41,9 @@ class text_form extends abstractform {
         $this->add_response_editor('responsetype_text_' . $this->_customdata->id);
 
         // Is there a word count prompt on this activity?
-        // If so we need to pass the language string to the client and load our counting JS.
+        // If so we need to pass the language string to the client.
         if ($this->_customdata->activity->maxwords) {
-            $this->add_word_count($this->_customdata->id, $this->_customdata->activity->maxwords);
+            $this->add_word_count($this->_customdata->activity->maxwords);
         }
 
         $mform->addElement('hidden', 'response', $this->_customdata->id);

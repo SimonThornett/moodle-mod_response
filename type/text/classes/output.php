@@ -54,25 +54,7 @@ class output extends abstractoutput implements renderable, templatable {
         $data->heading = format_string($this->data->name);
         $data->question = format_string($this->data->question);
         $data->fullpage = !empty($this->data->fullpage);
-        $data->contextid = !empty($this->data->contextid) ? $this->data->contextid : false;
-        $data->viewownpagedescription = !empty($this->data->viewownpagedescription);
-
-        // If we are rendering for an individual course module, we also want the course module object, with intro (description).
-        if (isset($this->data->cm)) {
-            $data->cm = $this->data->cm;
-            $data->cm->intro = $this->data->intro;
-            $data->cm->introformat = $this->data->introformat;
-
-            // Export the description only if settings are for 'full page' and 'view description'.
-            if ($data->fullpage && $data->viewownpagedescription) {
-                $data->description = format_module_intro('response', $data->cm, $data->cm->id, false);
-            } else {
-                $data->description = '';
-            }
-        } else {
-            // We probably want the CM for later.
-            $this->data->cm = get_coursemodule_from_instance('response', $this->data->id);
-        }
+        $this->add_course_module_data($data);
 
         $data->icon = $OUTPUT->render(new pix_icon('icon', '', 'responsetype_text'));
         if (empty($this->data->viewing_id)) {
@@ -99,13 +81,7 @@ class output extends abstractoutput implements renderable, templatable {
             $data->fullpage = !empty($this->data->fullpage);
             $data->summary_url = new moodle_url('/mod/response/index.php', ['id' => $this->data->course]);
 
-            if (!empty($this->data->response->profile_picture)) {
-                $data->profile_picture = $this->data->response->profile_picture;
-                $data->profile_name = $this->data->response->first_name;
-            } else {
-                $data->profile_picture = $OUTPUT->user_picture($USER, ['size' => '50', 'class' => 'profilepicture']);
-                $data->profile_name = ''; // Not needed.
-            }
+            $this->add_profile_data($data);
 
             $responsetext = $this->data->user_responses[$this->data->viewing_id]->response_text;
             $responsetext = file_rewrite_pluginfile_urls(
@@ -118,23 +94,7 @@ class output extends abstractoutput implements renderable, templatable {
             );
             $data->user_response = format_text($responsetext);
 
-            // This wasn't a template helper until Moodle 3.2...
-            $dateformat = get_string('strftimedatetimeshort', 'langconfig');
-            $timemodified = $this->data->user_responses[$this->data->viewing_id]->timemodified;
-            // We want the date in dd/mm/yy hh:mm format without stripping leading 0s.
-            $data->user_response_time = userdate($timemodified, $dateformat, 99, false, false);
-
-            $data->can_delete = !empty($this->data->can_delete);
-            $data->delete_url = !empty($this->data->delete_url) ? $this->data->delete_url : '';
-
-            $data->can_edit = !empty($this->data->can_edit);
-            $data->edit_url = !empty($this->data->edit_url) ? $this->data->edit_url : '';
-
-            // We also want to handle the completion stuff.
-            $data->postcompletion = '';
-            if (!empty($this->data->displaycompletionafter) && !empty($this->data->postcompletion)) {
-                $data->postcompletion = $this->data->postcompletion->render();
-            }
+            $this->add_response_metadata($data);
         }
         return $data;
     }

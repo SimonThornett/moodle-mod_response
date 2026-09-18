@@ -66,12 +66,12 @@ Feature: Users should be able to reflect on their poll answers
     And I am on "Course 1" course homepage
     # Completing the first activity.
     And I should see "The weather"
-    And I click on "Sunny." "radio"
-    And I press "Submit"
+    And I click on "Sunny." "radio" in the "The weather" "activity"
+    And I click on "Submit" "button" in the "The weather" "activity"
     # Completing the second activity.
     And I should see "Fried breakfasts"
-    And I click on "Sausages." "radio"
-    And I press "Submit"
+    And I click on "Sausages." "radio" in the "Fried breakfasts" "activity"
+    And I click on "Submit" "button" in the "Fried breakfasts" "activity"
     # Viewing the summary.
     And I should see "View course summary"
     And I follow "View course summary"
@@ -89,20 +89,20 @@ Feature: Users should be able to reflect on their poll answers
     And I am on "Course 1" course homepage
     # Completing the first activity.
     And I should see "The weather"
-    And I click on "Sunny." "radio"
-    And I press "Submit"
+    And I click on "Sunny." "radio" in the "The weather" "activity"
+    And I click on "Submit" "button" in the "The weather" "activity"
     # Completing the second activity because it's easier than selecting the third out of sequence.
     And I should see "Fried breakfasts"
-    And I click on "Sausages." "radio"
-    And I press "Submit"
+    And I click on "Sausages." "radio" in the "Fried breakfasts" "activity"
+    And I click on "Submit" "button" in the "Fried breakfasts" "activity"
     # Completing the third activity.
     And I should see "Working beverages"
-    And I click on "tea" "radio"
-    And I press "Next"
+    And I click on "tea" "radio" in the "Working beverages" "activity"
+    And I click on "Next" "button" in the "Working beverages" "activity"
     And I should see "How much"
     And I should see "tea"
     And I set the field "Your answer" to "A good brew can help deal with any situation that comes up."
-    And I press "Submit"
+    And I click on "Submit" "button" in the "Working beverages" "activity"
     # Viewing the summary.
     And I should see "View course summary"
     And I follow "View course summary"

@@ -127,7 +127,7 @@ Feature: In a course, teacher can pose a poll question
     And I log out
 
   @javascript
-    Scenario: Create an activity without a reflection step (inline view).
+  Scenario: Create an activity without a reflection step (inline view).
     When I log in as "teacher1"
     And I am on "Course 1" course homepage with editing mode on
     And I add a "response" activity to course "Course 1" section "1"

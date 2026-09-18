@@ -12,84 +12,63 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace mod_response\type\text;
-use mod_response\responsetype\abstractoutput;
-use stdClass;
-use renderable;
-use renderer_base;
-use templatable;
-use pix_icon;
+
 use context_module;
+use mod_response\helper;
+use mod_response\responsetype\abstractviewallresponses;
+use stdClass;
 
 /**
- * Creates a renderer for showing all responses to an activity.
+ * Creates a renderer for showing text responses to an activity.
  *
  * @package   responsetype_text
  * @copyright 2017 Peter Spicer <peter.spicer@catalyst-eu.net>
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class viewallresponses extends abstractoutput implements renderable, templatable {
-    /** @var object Contains all the data for a response so a user can complete it. */
-    protected $data = null;
+class viewallresponses extends abstractviewallresponses {
+    /**
+     * Formats a text response.
+     *
+     * @param stdClass $response Response to prepare.
+     * @return bool
+     */
+    protected function prepare_response(stdClass $response): bool {
+        $response->response_text = file_rewrite_pluginfile_urls(
+            $response->response_text,
+            'pluginfile.php',
+            context_module::instance($this->data->coursemodule)->id,
+            'responsetype_text',
+            'response_text',
+            $response->response_user_id,
+        );
+        $response->response_text = format_text($response->response_text);
+        return true;
+    }
 
     /**
-     * Provides the data for the template.
+     * Returns the response component.
      *
-     * Essentially hands everything to the subplugin because the subplugin
-     * knows what it needs for its own templates.
-     *
-     * @param renderer_base $output The output renderer object
-     * @return object $data An object containing all the template data
+     * @return string
      */
-    public function export_for_template(renderer_base $output): object {
-        global $OUTPUT;
+    protected function get_component(): string {
+        return 'responsetype_text';
+    }
 
-        $data = new stdClass();
-
-        // Whatever we're exporting, we want the title and question. (And support multilang by default).
-        $data->heading = format_string($this->data->name);
-        $data->question = format_string($this->data->question);
-        $data->user_responses = !empty($this->data->user_responses) ? $this->data->user_responses : [];
-        $data->group_selector = !empty($this->data->group_selector) ? $this->data->group_selector : '';
-
-        $data->icon = $OUTPUT->render(new pix_icon('icon', '', 'responsetype_text'));
-
-        $data->responsetype = $this->data->responsetype;
-
-        // Mustache requires we provide it a real array.
-        $data->user_responses = array_values($data->user_responses);
-
-        // Fix up date formatting.
-        $dateformat = get_string('strftimedatefullshort', 'langconfig');
-        $datetimeformat = get_string('strftimedatetimeshort', 'langconfig');
-        foreach ($data->user_responses as $id => $response) {
-            $timestamp = $response->timecompleted;
-
-            $response->response_text = file_rewrite_pluginfile_urls(
-                $response->response_text,
-                'pluginfile.php',
-                context_module::instance($this->data->coursemodule)->id,
-                'responsetype_text',
-                'response_text',
-                $response->response_user_id
-            );
-
-            $data->user_responses[$id]->response_text = format_text($response->response_text);
-            $data->user_responses[$id]->timecompleted_date = userdate($timestamp, $dateformat, 99, false, false);
-            $data->user_responses[$id]->timecompleted_datetime = userdate($timestamp, $datetimeformat, 99, false, false);
-        }
-
-        // Generate the URL for the context where the activity is displayed.
+    /**
+     * Returns the context link.
+     *
+     * @return string
+     */
+    protected function get_context_link(): string {
         $cm = get_coursemodule_from_id('response', $this->data->coursemodule);
         $course = get_course($cm->course);
-        $data->context_link = \mod_response\helper::get_context_url(
+        return helper::get_context_url(
             $cm,
             $course,
-            $this->data->responsedisplay
+            $this->data->responsedisplay,
         )->out(false);
-
-        return $data;
     }
 }

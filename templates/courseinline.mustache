@@ -42,7 +42,7 @@
         "heading": "This response",
         "question": "Do you like responses?",
         "contextid": 64,
-        "form": { a string that contains a rendered Moodle form's HTML }
+        "form": "<form>...</form>"
     }
 }}
 
@@ -97,11 +97,19 @@
         </div>
         <div class="card-footer"></div>
     </div>
+    {{# fullpage }}
+        </section>
+    {{/ fullpage }}
 
 {{# form }}
 {{#js}}
+M.util.js_pending('mod_response/ajaxform:init:{{contextid}}');
 require(['jquery', 'mod_response/ajaxform'], function($, ajaxform) {
     ajaxform.init('div.response[data-context={{contextid}}]');
+    M.util.js_complete('mod_response/ajaxform:init:{{contextid}}');
+}, function(err) {
+    M.util.js_complete('mod_response/ajaxform:init:{{contextid}}');
+    window.console.error('mod_response: failed to load mod_response/ajaxform', err);
 });
 {{/js}}
 {{/ form }}

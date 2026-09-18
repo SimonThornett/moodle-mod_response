@@ -76,4 +76,66 @@ abstract class abstractoutput implements renderable, templatable {
             return '["#f3c300","#875692","#f38400","#a1caf1","#be0032","#c2b280","#7f180d","#008856","#e68fac","#0067a5"]';
         }
     }
+
+    /**
+     * Adds common user profile fields to rendered response data.
+     *
+     * @param stdClass $data Template data.
+     * @return void
+     */
+    protected function add_profile_data(stdClass $data): void {
+        global $OUTPUT, $USER;
+
+        if (!empty($this->data->response->profile_picture)) {
+            $data->profile_picture = $this->data->response->profile_picture;
+            $data->profile_name = $this->data->response->first_name;
+        } else {
+            $data->profile_picture = $OUTPUT->user_picture($USER, ['size' => '50', 'class' => 'profilepicture']);
+            $data->profile_name = '';
+        }
+    }
+
+    /**
+     * Adds common course-module display data.
+     *
+     * @param stdClass $data Template data.
+     * @return void
+     */
+    protected function add_course_module_data(stdClass $data): void {
+        $data->contextid = !empty($this->data->contextid) ? $this->data->contextid : false;
+        $data->viewownpagedescription = !empty($this->data->viewownpagedescription);
+
+        if (isset($this->data->cm)) {
+            $data->cm = $this->data->cm;
+            $data->cm->intro = $this->data->intro;
+            $data->cm->introformat = $this->data->introformat;
+            if ($data->fullpage && $data->viewownpagedescription) {
+                $data->description = format_module_intro('response', $data->cm, $data->cm->id, false);
+            } else {
+                $data->description = '';
+            }
+        } else {
+            $this->data->cm = get_coursemodule_from_instance('response', $this->data->id);
+        }
+    }
+
+    /**
+     * Adds common response metadata to rendered response data.
+     *
+     * @param stdClass $data Template data.
+     * @return void
+     */
+    protected function add_response_metadata(stdClass $data): void {
+        $dateformat = get_string('strftimedatetimeshort', 'langconfig');
+        $timemodified = $this->data->user_responses[$this->data->viewing_id]->timemodified;
+        $data->user_response_time = userdate($timemodified, $dateformat, 99, false, false);
+        $data->can_delete = !empty($this->data->can_delete);
+        $data->delete_url = !empty($this->data->delete_url) ? $this->data->delete_url : '';
+        $data->can_edit = !empty($this->data->can_edit);
+        $data->edit_url = !empty($this->data->edit_url) ? $this->data->edit_url : '';
+        $data->postcompletion = '';
+        if (!empty($this->data->displaycompletionafter) && !empty($this->data->postcompletion)) {
+            $data->postcompletion = $this->data->postcompletion->render();
+        }
+    }
 }

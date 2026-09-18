@@ -5,7 +5,8 @@ define(
     'core/fragment',
     'core/templates',
     'mod_response/precompletion',
-    'mod_response/postcompletion'
+    'mod_response/postcompletion',
+    'mod_response/formwordcount',
 ],
 function(
     $,
@@ -13,7 +14,8 @@ function(
     fragment,
     template,
     precompletion,
-    postcompletion
+    postcompletion,
+    formwordcount,
 ) {
     return {
         init: function(selector) {
@@ -25,6 +27,9 @@ function(
 
         bindForm: function(selector) {
             var btnselector = 'input[type=submit], input[type=button], button:not(.plus-x-other)';
+
+            // Initialise the word counter for any word-count widgets present in this form.
+            formwordcount.init(selector);
 
             // Make a hidden element for our form so we know which button was pressed.
             $(selector).find('form').each(function () {

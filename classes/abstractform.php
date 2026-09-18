@@ -167,15 +167,13 @@ abstract class abstractform extends moodleform {
      * Adds a mod_response word count widget to a given activity.
      *
      * This assumes it functions the way plugins like text makes use of it.
-     * This adds form items to display the word count (so call this where
-     * you want it in your form) and will also load/prepare the JavaScript.
+     * This adds form items to display the word count, so call this where
+     * you want it in your form.
      *
-     * @param int $responseid The activity id (as per mdl_response)
      * @param int $wordcount The expected wordcount that the activity has.
+     * @return void
      */
-    public function add_word_count($responseid, $wordcount) {
-        global $PAGE;
-
+    public function add_word_count(int $wordcount): void {
         $mform = $this->_form;
 
         // Get the string and pass in the activity configuration.
@@ -185,8 +183,10 @@ abstract class abstractform extends moodleform {
         $prompt = str_replace('"', '&quot;', $prompt);
         $mform->addElement('html', '<div class="maximumwordsprompt" data-message="' . $prompt . '"></div>');
 
-        // Load our JavaScript for counting words.
-        $PAGE->requires->js_call_amd('mod_response/formwordcount', 'init', ['#mod_response_form_' . $responseid]);
+        // Note: the counter itself is initialised by mod_response/ajaxform, which is
+        // required whenever this form is rendered (either full page or AJAX fragment).
+        // Doing it there (rather than via js_call_amd here) avoids a pending JS race
+        // where the nested require() callback used by js_call_amd can fail to resolve.
     }
 
     /**

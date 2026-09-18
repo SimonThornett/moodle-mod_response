@@ -264,7 +264,7 @@ class renderer extends plugin_renderer_base {
             $currentfilter = get_string('filterlastactive', 'mod_response', ['last' => $lastinitial]);
         }
 
-        $this->page->requires->js_call_amd('mod_response/searchwidget/initials', 'init', [$slug, $searchvalue]);
+        helper::js_call_amd_safe($this->page, 'mod_response/searchwidget/initials', 'init', [$slug, $searchvalue]);
 
         $formdata = (object) [
             'courseid' => $COURSE->id,
