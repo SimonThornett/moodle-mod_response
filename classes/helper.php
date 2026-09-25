@@ -114,7 +114,7 @@ class helper {
             return false;
         }
 
-        $fullpath = "/$context->id/{$responsefilearea}/$filearea/" . implode('/', $args);
+        $fullpath = "/$context->id/$responsefilearea/$filearea/" . implode('/', $args);
         $file = get_file_storage()->get_file_by_hash(sha1($fullpath));
         if (!$file) {
             send_file_not_found();
