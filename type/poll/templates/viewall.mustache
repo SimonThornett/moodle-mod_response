@@ -103,15 +103,15 @@
         </div>
         {{/ delete_link }}
     </div>
-    {{#js}}
-    require(['responsetype_poll/viewall_chart'], function(viewAllChart) {
-        viewAllChart({{{aggregate}}}, {{{colours}}}, {{#quote}}{{# str }} selectedby, responsetype_poll {{/ str }}{{/quote}});
-    });
-    {{/js}}
     {{/ all_responses }}
     {{^ all_responses }}
     <div class="alert alert-warning">
         {{# str }} nocompletions, response {{/ str }}
     </div>
     {{/ all_responses }}
+    {{#js}}
+    require(['responsetype_poll/viewall_chart'], function(viewAllChart) {
+        viewAllChart({{{aggregate}}}, {{{colours}}}, {{#quote}}{{# str }} selectedby, responsetype_poll {{/ str }}{{/quote}});
+    });
+    {{/js}}
 </section>

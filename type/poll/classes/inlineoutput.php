@@ -54,7 +54,7 @@ class inlineoutput extends abstractoutput implements renderable, templatable {
 
         $userchoice = $this->data->response->choice;
         $data->user_choice = $this->data->activity->poll_choices[$userchoice]->choice;
-        $context = context_module::instance($this->data->cm->id);
+        $context = context_module::instance($this->data->meta->cm->id);
         $data->user_response = file_rewrite_pluginfile_urls(
             $this->data->response->reflection_text,
             'pluginfile.php',

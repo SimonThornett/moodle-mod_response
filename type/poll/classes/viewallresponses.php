@@ -80,7 +80,7 @@ class viewallresponses extends abstractviewallresponses {
             $data->aggregate[$response->choice]['count']++;
         }
         $data->aggregate = json_encode($data->aggregate);
-        $data->chart_colours = $this->stringify_chart_colorset();
+        $data->colours = $this->stringify_chart_colorset();
     }
 
     /**
