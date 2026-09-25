@@ -29,7 +29,8 @@ use mod_response\helper;
  * @param bool $forcedownload True to force download
  * @param array $options Additional options affecting file serving
  * @return bool False if file not found, does not return if found
- * @copyright 2026 Simon Thornett
+ * @author Simon Thornett <simon.thornett@catalyst-eu.net>
+ * @copyright Catalyst IT, 2026
  * @license https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 function responsetype_poll_pluginfile(

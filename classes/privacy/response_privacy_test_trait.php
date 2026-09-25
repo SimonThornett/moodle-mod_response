@@ -24,7 +24,8 @@ use mod_response\privacy\provider as parentprovider;
  * Shared privacy tests for response type subplugins.
  *
  * @package   mod_response
- * @copyright 2026 Simon Thornett
+ * @author    Simon Thornett <simon.thornett@catalyst-eu.net>
+ * @copyright Catalyst IT, 2026
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 trait response_privacy_test_trait {
