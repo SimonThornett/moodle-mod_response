@@ -26,7 +26,8 @@ use templatable;
  * Shared renderer for displaying responses for an activity.
  *
  * @package   mod_response
- * @copyright 2026 Simon Thornett
+ * @author    Simon Thornett <simon.thornett@catalyst-eu.net>
+ * @copyright Catalyst IT, 2026
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 abstract class abstractviewallresponses extends abstractoutput implements renderable, templatable {
